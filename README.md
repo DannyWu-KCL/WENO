@@ -19,14 +19,14 @@ WSI contains histopathological images which plays crucial role in cancer diagnos
 Each WSI is considered as a 'bag', patches are considered as instances. Negative bag means all instances are negative but positive bag means in the bag, there is at least one positive instance. 
 
 Typically, MIL perform two tasks: 
-- Bag Classification
+1. Bag Classification
 Bag classification is a more common approach as ground truth labels are often given at bag-level. This appraoch first extracts feature of each instance in a bag then aggregates the instance-level feature to bag-level feature using trainable attention mechanism. As we have bag-level labels, bag classifier is trained in supervised manner. The attention scores used to form bag-level prediction is used to evaluate the contribution of each instance. Thus, attention scores are used for instance classification. 
 
 However, this approach suffers from two challenges:
-  1. Poor instance classification
+  - Poor instance classification
   Positive instances have different difficulties to be identified. As bag-level label will be easily satisfied by identifying easy positive instance, the bag-level classifier is unable to recognize difficult instance thus making it a poor instance classifier. 
-  2. Bias of the bag classifier
+  - Bias of the bag classifier
   The trained bag-classifier has problem generalizing bags with only hard instances. 
 
-- Instance Classification
+2. Instance Classification
 Instance-based approach train an instance classifier then aggregate its prediction to form a bag prediction. However, as this approach lacks instance-level labels, it needs to select some instances from positive bags to form pseudo positive instance-level label. This results in noises which limit the performance of trained instance classifier. 
