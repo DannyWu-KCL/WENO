@@ -33,7 +33,7 @@ Instance-based approach train an instance classifier then aggregate its predicti
 # Solution: Weakly Supervised Knowledge Distillation (WENO)
 WENO integrates bag and instance classifier in a knowledge distillation framework to mutually improve the performance of both classifiers by effectively transfering knowledge between them. 
 <p align="center">
-  <img src="https://github.com/miccaiif/WENO/blob/main/figure2.jpg" width="640">
+  <img src="https://github.com/miccaiif/WENO/blob/main/figure2.png" width="640">
 </p>
 
 (a) the teacher network is trained in advance and it keeps unchanged during training the student.Knowledge is distilled from the teacher to the student. In recent self-knowledge distillation 
