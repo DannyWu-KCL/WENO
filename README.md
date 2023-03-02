@@ -9,8 +9,16 @@ Official PyTorch implementation of our NeurIPS 2022 paper: **[Bi-directional Wea
 # Notes
 
 # Why do we need Whole Slide Image (WSI) Classification?
-- WSI contains histopathological images which plays crucial role in cancer diagnosis and prognosis prediction. 
+WSI contains histopathological images which plays crucial role in cancer diagnosis and prognosis prediction. 
 
 # Challenges in deep learning development
-(1) WSI is often of huge resolution 100k*100k which needs to be tiled into smaller patches before feeding into nn. 
-(2) Patch-level annotation is time-consuming and labor-intensive, therefore the dataset often only contains slide-level label and lacks instance-level label
+1. WSI is often of huge resolution 100k*100k which needs to be tiled into smaller patches before feeding into nn. 
+2. Patch-level annotation is time-consuming and labor-intensive, therefore the dataset often only contains slide-level label and lacks instance-level label
+
+# Common Solution - Multi-Instance Labelling (MIL)
+Each WSI is considered as a 'bag', patches are considered as instances. Negative bag means all instances are negative but positive bag means in the bag, there is at least one positive instance. \\
+
+Typically, MIL perform two tasks:\\
+- Bag Classification
+- Instance Classification
+
