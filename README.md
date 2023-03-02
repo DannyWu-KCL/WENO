@@ -3,14 +3,14 @@ Official PyTorch implementation of our NeurIPS 2022 paper: **[Bi-directional Wea
 
 # Notes
 
-# Why do we need Whole Slide Image (WSI) Classification?
+## Why do we need Whole Slide Image (WSI) Classification?
 WSI contains histopathological images which plays crucial role in cancer diagnosis and prognosis prediction. 
 
-# Challenges in deep learning development
+## Challenges in deep learning development
 1. WSI is often of huge resolution 100k*100k which needs to be tiled into smaller patches before feeding into nn. 
 2. Patch-level annotation is time-consuming and labor-intensive, therefore the dataset often only contains slide-level label and lacks instance-level label
 
-# Common Solution - Multi-Instance Labelling (MIL)
+## Common Solution - Multi-Instance Labelling (MIL)
 Each WSI is considered as a 'bag', patches are considered as instances. Negative bag means all instances are negative but positive bag means in the bag, there is at least one positive instance. 
 
 Typically, MIL perform two tasks: 
@@ -30,17 +30,17 @@ However, this approach suffers from two challenges:
 
 Instance-based approach train an instance classifier then aggregate its prediction to form a bag prediction. However, as this approach lacks instance-level labels, it needs to select some instances from positive bags to form pseudo positive instance-level label. This results in noises which limit the performance of trained instance classifier. 
 
-# Solution: Weakly Supervised Knowledge Distillation (WENO)
+## Solution: Weakly Supervised Knowledge Distillation (WENO)
 WENO integrates bag and instance classifier in a knowledge distillation framework to mutually improve the performance of both classifiers by effectively transfering knowledge between them. 
 <p align="center">
   <img src="https://github.com/miccaiif/WENO/blob/main/figure2.png" width="640">
 </p>
 
-(a) the teacher network is trained in advance and it keeps unchanged during training the student.Knowledge is distilled from the teacher to the student. In recent self-knowledge distillation 
+(a) the teacher network is trained in advance and it keeps unchanged during training the student. Knowledge is distilled from the teacher to the student. In recent self-knowledge distillation 
 
 (b) such as DINO [3], the teacher has the same architecture with the student and it is not trainable but updated from the student. Two-way knowledge transfer exists between the teacher and the student. 
 
-(c), the teacher is a bag-classifier and it is also trained with weak slide-level labels. Knowledge is distilled from teacher to student by providing pseudo instance
+(c) the teacher is a bag-classifier and it is also trained with weak slide-level labels. Knowledge is distilled from teacher to student by providing pseudo instance
 labels using attention scores of the teacher and knowledge transfer from the student to the teacher is achieved by sharing instance feature extractors between them.
 
 <p align="center">
