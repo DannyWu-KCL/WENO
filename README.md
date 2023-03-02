@@ -1,11 +1,6 @@
 # :camel: WENO
 Official PyTorch implementation of our NeurIPS 2022 paper: **[Bi-directional Weakly Supervised Knowledge Distillation for Whole Slide Image Classification](https://arxiv.org/abs/2210.03664)**. We propose an end-to-end weakly supervised knowledge distillation framework (**WENO**) for WSI classification, which integrates a bag classifier and an instance classifier in a knowledge distillation framework to mutually improve the performance of both classifiers. WENO is a plug-and-play framework that can be easily applied to any existing attention-based bag classification methods.
 
-<p align="center">
-  <img src="https://github.com/miccaiif/WENO/blob/main/figure3.jpg" width="640">
-</p>
-
-
 # Notes
 
 # Why do we need Whole Slide Image (WSI) Classification?
@@ -34,3 +29,20 @@ However, this approach suffers from two challenges:
 2. Instance Classification
 
 Instance-based approach train an instance classifier then aggregate its prediction to form a bag prediction. However, as this approach lacks instance-level labels, it needs to select some instances from positive bags to form pseudo positive instance-level label. This results in noises which limit the performance of trained instance classifier. 
+
+# Solution: Weakly Supervised Knowledge Distillation (WENO)
+WENO integrates bag and instance classifier in a knowledge distillation framework to mutually improve the performance of both classifiers by effectively transfering knowledge between them. 
+<p align="center">
+  <img src="https://github.com/miccaiif/WENO/blob/main/figure2.jpg" width="640">
+</p>
+
+(a) the teacher network is trained in advance and it keeps unchanged during training the student.Knowledge is distilled from the teacher to the student. In recent self-knowledge distillation 
+
+(b) such as DINO [3], the teacher has the same architecture with the student and it is not trainable but updated from the student. Two-way knowledge transfer exists between the teacher and the student. 
+
+(c), the teacher is a bag-classifier and it is also trained with weak slide-level labels. Knowledge is distilled from teacher to student by providing pseudo instance
+labels using attention scores of the teacher and knowledge transfer from the student to the teacher is achieved by sharing instance feature extractors between them.
+
+<p align="center">
+  <img src="https://github.com/miccaiif/WENO/blob/main/figure3.jpg" width="640">
+</p>
