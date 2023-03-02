@@ -5,4 +5,12 @@ Official PyTorch implementation of our NeurIPS 2022 paper: **[Bi-directional Wea
   <img src="https://github.com/miccaiif/WENO/blob/main/figure3.jpg" width="640">
 </p>
 
-On Updating.
+
+# Notes
+
+# Why do we need Whole Slide Image (WSI) Classification?
+- WSI contains histopathological images which plays crucial role in cancer diagnosis and prognosis prediction. 
+
+# Challenges in deep learning development
+(1) WSI is often of huge resolution 100k*100k which needs to be tiled into smaller patches before feeding into nn. 
+(2) Patch-level annotation is time-consuming and labor-intensive, therefore the dataset often only contains slide-level label and lacks instance-level label
