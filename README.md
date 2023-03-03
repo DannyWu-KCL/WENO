@@ -61,5 +61,5 @@ This paper proposed an effective framework to integrate bag and instance classif
 ## Results
 
 <p align="center">
-  <img src="https://github.com/miccaiif/WENO/blob/main/figure4.png" width="640">
+  <img src="https://github.com/miccaiif/WENO/blob/main/figure4.PNG" width="640">
 </p>
