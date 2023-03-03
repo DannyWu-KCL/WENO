@@ -34,7 +34,7 @@ Instance-based approach train an instance classifier then aggregate its predicti
 WENO integrates bag and instance classifier in a knowledge distillation framework to mutually improve the performance of both classifiers by effectively transfering knowledge between them. 
 
 <p align="center">
-  <img src="https://github.com/miccaiif/WENO/blob/main/figure2.png" width="640">
+  <img src="https://github.com/DannyWu-KCL/WENO/blob/main/figure2.png" width="640">
 </p>
 
 (a) the teacher network is trained in advance and it keeps unchanged during training the student. Knowledge is distilled from the teacher to the student. In recent self-knowledge distillation 
@@ -45,7 +45,7 @@ WENO integrates bag and instance classifier in a knowledge distillation framewor
 labels using attention scores of the teacher and knowledge transfer from the student to the teacher is achieved by sharing instance feature extractors between them.
 
 <p align="center">
-  <img src="https://github.com/miccaiif/WENO/blob/main/figure3.jpg" width="640">
+  <img src="https://github.com/DannyWu-KCL/WENO/blob/main/figure3.jpg" width="640">
 </p>
 
 ## Novelty of this paper
@@ -61,5 +61,5 @@ This paper proposed an effective framework to integrate bag and instance classif
 ## Results
 
 <p align="center">
-  <img src="https://github.com/miccaiif/WENO/blob/main/figure4.PNG" width="640">
+  <img src="https://github.com/DannyWu-KCL/WENO/blob/main/figure4.PNG" width="640">
 </p>
