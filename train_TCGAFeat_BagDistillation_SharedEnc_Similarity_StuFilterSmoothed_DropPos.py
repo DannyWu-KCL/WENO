@@ -57,24 +57,25 @@ class Optimizer:
         self.Bank_all_instances_pred_byTeacher = None
         self.Bank_all_instances_feat_byTeacher = None
         self.Bank_all_instances_pred_processed = None
-
         self.Bank_all_instances_pred_byStudent = None
 
-        # Load pre-extracted SimCLR features
-        # pre_trained_SimCLR_feat = self.train_instanceloader.dataset.ds_data_simCLR_feat[self.train_instanceloader.dataset.idx_all_slides].to(self.dev)
         for epoch in range(self.num_epoch):
             self.optimize_teacher(epoch)
             self.evaluate_teacher(epoch)
+
+            # what is this? 
             if epoch % self.stuOptPeriod == 0:
                 self.optimize_student(epoch)
                 self.evaluate_student(epoch)
 
         return 0
 
-    def optimize_teacher(self, epoch):
+    def optimize_teacher(self, epoch): # In this block, only encoder and teacher are updated
+        # set encoder & teacher to training mode and set student head to non-trainable mode
         self.model_encoder.train()
         self.model_teacherHead.train()
         self.model_studentHead.eval()
+        
         ## optimize teacher with bag-dataloader
         # 1. change loader to bag-loader
         loader = self.train_bagloader
@@ -83,45 +84,43 @@ class Optimizer:
         patch_label_pred = []
         bag_label_gt = []
         bag_label_pred = []
+        
+        
         for iter, (data, label, selected) in enumerate(tqdm(loader, desc='Teacher training')):
             for i, j in enumerate(label):
                 if torch.is_tensor(j):
                     label[i] = j.to(self.dev)
             selected = selected.squeeze(0)
             niter = epoch * len(loader) + iter
-
             data = data.to(self.dev)
             # bag_prediction, _, _, instance_attn_score = self.model_tea(data, returnBeforeSoftMaxA=True)
             feat = self.model_encoder(data.squeeze(0))
             if epoch > self.smoothE:
-                if torch.rand(1) > -999:
-                    if "FilterNegInstance" in self.StuFilterType:
-                        # using student prediction to remove negative instance feat in the positive bag
-                        if label[1] == 1:
-                            with torch.no_grad():
-                                pred_byStudent = self.model_studentHead(feat)
-                                pred_byStudent = torch.softmax(pred_byStudent, dim=1)[:, 1]
-                            if '_Top' in self.StuFilterType:
-                                # strategy A: remove the topK most negative instance
-                                idx_to_keep = torch.topk(-pred_byStudent, k=int(self.StuFilterType.split('_Top')[-1]))[1]
-                            elif '_ThreProb' in self.StuFilterType:
-                                # strategy B: remove the negative instance above prob K
-                                idx_to_keep = torch.where(pred_byStudent <= int(self.StuFilterType.split('_ThreProb')[-1])/100.0)[0]
-                                if idx_to_keep.shape[0] == 0:  # if all instance are dropped, keep the most positive one
-                                    idx_to_keep = torch.topk(pred_byStudent, k=1)[1]
-                            feat_removedNeg = feat[idx_to_keep]
-                            bag_prediction, _, _, instance_attn_score = self.model_teacherHead(feat_removedNeg, returnBeforeSoftMaxA=True, scores_replaceAS=None)
-                            instance_attn_score = torch.cat([instance_attn_score, instance_attn_score.min()*torch.ones(1, feat.shape[0]-instance_attn_score.shape[1]).to(instance_attn_score.device)], dim=1)
-                            # with torch.no_grad():
-                            #     _, _, _, instance_attn_score = self.model_teacherHead(feat, returnBeforeSoftMaxA=True, scores_replaceAS=None)
-                        else:
-                            bag_prediction, _, _, instance_attn_score = self.model_teacherHead(feat, returnBeforeSoftMaxA=True, scores_replaceAS=None)
+                if "FilterNegInstance" in self.StuFilterType:
+                    # using student prediction to remove negative instance feat in the positive bag
+                    if label[1] == 1:
+                        with torch.no_grad():
+                            pred_byStudent = self.model_studentHead(feat)
+                            pred_byStudent = torch.softmax(pred_byStudent, dim=1)[:, 1]
+                        if '_Top' in self.StuFilterType:
+                            # strategy A: remove the topk most negative instance
+                            idx_to_keep = torch.topk(-pred_byStudent, k=int(self.StuFilterType.split('_Top')[-1]))[1]
+                        elif '_ThreProb' in self.StuFilterType:
+                            # strategy B: remove the negative instance above prob K
+                            idx_to_keep = torch.where(pred_byStudent <= int(self.StuFilterType.split('_ThreProb')[-1])/100.0)[0]
+                            if idx_to_keep.shape[0] == 0:  # if all instance are dropped, keep the most positive one
+                                idx_to_keep = torch.topk(pred_byStudent, k=1)[1]
+                        feat_removedNeg = feat[idx_to_keep]
+                        bag_prediction, _, _, instance_attn_score = self.model_teacherHead(feat_removedNeg, returnBeforeSoftMaxA=True, scores_replaceAS=None)
+                        instance_attn_score = torch.cat([instance_attn_score, instance_attn_score.min()*torch.ones(1, feat.shape[0]-instance_attn_score.shape[1]).to(instance_attn_score.device)], dim=1)
                     else:
                         bag_prediction, _, _, instance_attn_score = self.model_teacherHead(feat, returnBeforeSoftMaxA=True, scores_replaceAS=None)
                 else:
                     bag_prediction, _, _, instance_attn_score = self.model_teacherHead(feat, returnBeforeSoftMaxA=True, scores_replaceAS=None)
             else:
                 bag_prediction, _, _, instance_attn_score = self.model_teacherHead(feat, returnBeforeSoftMaxA=True, scores_replaceAS=None)
+            
+            
             bag_prediction = torch.softmax(bag_prediction, 1)
             loss_teacher = -1. * (label[1] * torch.log(bag_prediction[0, 1]+1e-5) + (1. - label[1]) * torch.log(1. - bag_prediction[0, 1]+1e-5))
             self.optimizer_encoder.zero_grad()
@@ -142,12 +141,14 @@ class Optimizer:
         bag_label_pred = torch.tensor(bag_label_pred)
         bag_label_gt = torch.cat(bag_label_gt)
 
+        # Normalizing attention score from bag classifier (Soft pseudo label)
         self.estimated_AttnScore_norm_para_min = patch_label_pred.min()
         self.estimated_AttnScore_norm_para_max = patch_label_pred.max()
         patch_label_pred_normed = self.norm_AttnScore2Prob(patch_label_pred)
+        
         instance_auc_ByTeacher = utliz.cal_auc(patch_label_gt.reshape(-1), patch_label_pred_normed.reshape(-1))
-
         bag_auc_ByTeacher = utliz.cal_auc(bag_label_gt.reshape(-1), bag_label_pred.reshape(-1))
+        
         self.writer.add_scalar('train_instance_AUC_byTeacher', instance_auc_ByTeacher, epoch)
         self.writer.add_scalar('train_bag_AUC_byTeacher', bag_auc_ByTeacher, epoch)
         # print("Epoch:{} train_bag_AUC_byTeacher:{}".format(epoch, bag_auc_ByTeacher))
@@ -157,6 +158,10 @@ class Optimizer:
         prob = (attn_score - self.estimated_AttnScore_norm_para_min) / (self.estimated_AttnScore_norm_para_max - self.estimated_AttnScore_norm_para_min)
         return prob
 
+    """
+    
+    not used
+    
     def post_process_pred_byTeacher(self, Bank_all_instances_feat, Bank_all_instances_pred, Bank_all_bags_label, method='NegGuide'):
         if method=='NegGuide':
             Bank_all_instances_pred_processed = Bank_all_instances_pred.clone()
@@ -222,8 +227,9 @@ class Optimizer:
         # plt.hist(pseudo_labels.cpu().numpy().reshape(-1))
 
         return pseudo_labels
-
-    def optimize_student(self, epoch):
+    
+    """
+    def optimize_student(self, epoch): # In this block, all networks are updated
         self.model_teacherHead.train()
         self.model_encoder.train()
         self.model_studentHead.train()
@@ -292,6 +298,9 @@ class Optimizer:
         bag_auc_ByStudent = utliz.cal_auc(bag_label_gt_coarse.reshape(-1), bag_label_prediction.reshape(-1))
         self.writer.add_scalar('train_bag_AUC_byStudent', bag_auc_ByStudent, epoch)
         return 0
+    """
+    
+    Not used
 
     def optimize_student_fromBank(self, epoch, Bank_all_instances_pred):
         self.model_teacherHead.train()
@@ -352,7 +361,8 @@ class Optimizer:
         self.writer.add_scalar('train_bag_AUC_byStudent', bag_auc_ByStudent, epoch)
         # print("Epoch:{} train_instance_AUC_byStudent:{}".format(epoch, instance_auc_ByStudent))
         return 0
-
+    
+    """
     def evaluate(self, epoch, loader, log_name_prefix=''):
         return 0
 
@@ -526,6 +536,7 @@ if __name__ == "__main__":
     # random.seed(args.seed)
     # np.random.seed(args.seed)
 
+    # Load arguments
     name = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")+"_%s" % args.comment.replace('/', '_') + \
            "_Seed{}_Bs{}_lr{}_PLPostProcessBy{}_StuFilterType{}_smoothE{}_weightN{}_StuOptP{}".format(
                args.seed, args.batch_size, args.lr,
@@ -542,7 +553,7 @@ if __name__ == "__main__":
     writer = SummaryWriter('./runs_TCGA/%s'%name)
     writer.add_text('args', " \n".join(['%s %s' % (arg, getattr(args, arg)) for arg in vars(args)]))
 
-    # Setup model
+    # Initialize models and their optimizer
     model_encoder = camelyon_feat_projecter(input_dim=512, output_dim=512).to('cuda:0')
     model_teacherHead = teacher_Attention_head(input_feat_dim=512).to('cuda:0')
     model_studentHead = student_head(input_feat_dim=512).to('cuda:0')
@@ -551,7 +562,7 @@ if __name__ == "__main__":
     optimizer_teacherHead = torch.optim.SGD(model_teacherHead.parameters(), lr=args.lr)
     optimizer_studentHead = torch.optim.SGD(model_studentHead.parameters(), lr=args.lr)
 
-    # Setup loaders
+    # Setup data loaders (bag/instance)*(train/val)
     train_ds_return_instance = TCGA_LungCancer_Feat(train=True, return_bag=False)
 
     train_ds_return_bag = copy.deepcopy(train_ds_return_instance)
@@ -567,6 +578,7 @@ if __name__ == "__main__":
     print("[Data] {} training samples".format(len(train_loader_instance.dataset)))
     print("[Data] {} evaluating samples".format(len(val_loader_instance.dataset)))
 
+    # Choose gpus according to num of gpu device available, more than 2 will adopt parallel training
     if torch.cuda.device_count() > 1:
         print("Let's use", len(args.modeldevice), "GPUs for the model")
         if len(args.modeldevice) == 1:

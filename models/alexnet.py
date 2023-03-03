@@ -618,7 +618,10 @@ class AlexNet_CIFAR10_attention(nn.Module):
         return x, 0, A
 
     def _initialize_weights(self):
-        for y, m in enumerate(self.modules()):
+        # This module is used for manual initialization, random initialization from pytorch might work as well
+        # self.modules contains all module of net itself and all its children, by iterating through self.modules, we will iterate through all layers
+        # Therefore, we can set all weights to normal_(0, math.sqrt(2. / n)) with bias all equal to 0 for Conv layers
+        for y, m in enumerate(self.modules()): 
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 for i in range(m.out_channels):

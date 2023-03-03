@@ -56,7 +56,7 @@ labels using attention scores of the teacher and knowledge transfer from the stu
 
 ## Contribution of this paper
 
-This paper proposed an effective framework to integrate bag and instance classifier. By training two networks mutually with communication channel between networks, this framework is able to alleviate the challenges such as noisy pseudo label for instance-classifier and bag-classifier inability to recognize difficult postive instances. 
+This paper proposed an effective framework to integrate bag and instance classifier. By training two networks alternatively with communication channel between networks, this framework is able to alleviate the challenges such as noisy pseudo label for instance-classifier and bag-classifier's inability to recognize difficult postive instances. 
 
 ## Results
 
