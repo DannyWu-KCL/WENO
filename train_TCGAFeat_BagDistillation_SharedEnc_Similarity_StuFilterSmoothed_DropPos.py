@@ -63,7 +63,6 @@ class Optimizer:
             self.optimize_teacher(epoch)
             self.evaluate_teacher(epoch)
 
-            # what is this? 
             if epoch % self.stuOptPeriod == 0:
                 self.optimize_student(epoch)
                 self.evaluate_student(epoch)
