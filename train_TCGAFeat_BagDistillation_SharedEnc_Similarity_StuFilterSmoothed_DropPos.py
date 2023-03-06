@@ -551,11 +551,11 @@ if __name__ == "__main__":
 
     writer = SummaryWriter('./runs_TCGA/%s'%name)
     writer.add_text('args', " \n".join(['%s %s' % (arg, getattr(args, arg)) for arg in vars(args)]))
-
+    dev=torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # Initialize models and their optimizer
-    model_encoder = camelyon_feat_projecter(input_dim=512, output_dim=512).to('cuda:0')
-    model_teacherHead = teacher_Attention_head(input_feat_dim=512).to('cuda:0')
-    model_studentHead = student_head(input_feat_dim=512).to('cuda:0')
+    model_encoder = camelyon_feat_projecter(input_dim=512, output_dim=512).to(dev)
+    model_teacherHead = teacher_Attention_head(input_feat_dim=512).to(dev)
+    model_studentHead = student_head(input_feat_dim=512).to(dev)
 
     optimizer_encoder = torch.optim.SGD(model_encoder.parameters(), lr=args.lr)
     optimizer_teacherHead = torch.optim.SGD(model_teacherHead.parameters(), lr=args.lr)
