@@ -118,6 +118,32 @@ def cal_acc_optimAccThre(label, pred, pos_label=1):
     return best_acc
 
 
+def cal_metrics(label,pred):
+    if type(pred) is not torch.Tensor:
+        pred = torch.from_numpy(pred)
+    else:
+        pred = pred.detach().cpu()
+    if type(label) is not torch.Tensor:
+        label = torch.from_numpy(label)
+    else:
+        label = label.detach().cpu()
+
+    pred = pred.round()
+    TP = torch.sum(label * pred)
+    TN = torch.sum((1 - label) * (1 - pred))
+    FP = torch.sum((1 - label) * pred)
+    FN = torch.sum(label * (1 - pred))
+    Accuracy = (TP + TN) / (TP + FP + FN + TN)
+    Precision = (TP)/(TP + FP)
+    Recall = (TP)/(TP + FN)
+    Sensitivity = TP/(TP + FN)
+    Specificity = TN / (FP + TN)
+    F1_score = 2 * (Precision * Recall)/ (Precision + Recall)
+
+    return Accuracy, Precision, Recall, Sensitivity, Specificity, F1_score
+
+
+
 def cal_TPR_TNR_FPR_FNR(label, pred):
     if type(pred) is not torch.Tensor:
         pred = torch.from_numpy(pred)

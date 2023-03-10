@@ -24,8 +24,8 @@ class TCGA_LungCancer(torch.utils.data.Dataset):
         self.preload = preload
         if self.transform is None:
             self.transform = transforms.Compose([transforms.ToTensor()])
-        dir_LUAD = ""
-        dir_LUSC = ""
+        dir_LUAD = "tcga-dataset/LUAD.csv"
+        dir_LUSC = "tcga-dataset/LUSC.csv"
         file_test_id = "/home/xiaoyuan/TCGA/TCGA_LungCancer/TEST_ID.csv"
         all_slides = glob.glob(dir_LUAD + "/*") + glob.glob(dir_LUSC + "/*")
         test_id = pd.read_csv(file_test_id)['0'].tolist()
@@ -103,12 +103,16 @@ class TCGA_LungCancer_Feat(torch.utils.data.Dataset):
     def __init__(self, train=True, downsample=1.0, return_bag=False):
         self.train = train
         self.return_bag = return_bag
-        bags_csv = ''
+        bags_csv = 'tcga-dataset/TCGA.csv'
         bags_path = pd.read_csv(bags_csv)
-        train_path = bags_path.iloc[0:int(len(bags_path) * 0.8), :]
-        test_path = bags_path.iloc[int(len(bags_path) * 0.8):, :]
-        train_path = shuffle(train_path).reset_index(drop=True)
-        test_path = shuffle(test_path).reset_index(drop=True)
+        leng = len(bags_path)
+        bags_path = shuffle(bags_path,random_state=42).reset_index(drop=True)
+        
+        train_path = bags_path.iloc[0: int(leng * 0.8), :]
+        test_path = bags_path.iloc[int(leng * 0.8):int(leng), :]
+
+        train_path = shuffle(train_path,random_state=42).reset_index(drop=True)
+        test_path = shuffle(test_path,random_state=42).reset_index(drop=True)
 
         if downsample < 1.0:
             train_path = train_path.iloc[0:int(len(train_path) * downsample), :]
@@ -176,7 +180,7 @@ class TCGA_LungCancer_Feat(torch.utils.data.Dataset):
 
 
 def get_bag_feats(csv_file_df):
-    feats_csv_path = '' + csv_file_df.iloc[0].split('/')[1] + '.csv'
+    feats_csv_path = 'tcga-dataset/tcga_lung_data_feats/' + csv_file_df.iloc[0].split('/')[1] + '.csv'
     df = pd.read_csv(feats_csv_path)
     feats = shuffle(df).reset_index(drop=True)
     feats = feats.to_numpy()

@@ -62,6 +62,7 @@ class Optimizer:
         # Load pre-extracted SimCLR features
         # pre_trained_SimCLR_feat = self.train_instanceloader.dataset.ds_data_simCLR_feat[self.train_instanceloader.dataset.idx_all_slides].to(self.dev)
         for epoch in range(self.num_epoch):
+            print('Epoch:',epoch)
             self.optimize_teacher(epoch)
             self.evaluate_teacher(epoch)
             if epoch % self.stuOptPeriod == 0:
@@ -83,7 +84,8 @@ class Optimizer:
         patch_label_pred = []
         bag_label_gt = []
         bag_label_pred = []
-        for iter, (data, label, selected) in enumerate(tqdm(loader, desc='Teacher training')):
+        teacher_loss_record = []
+        for iter, (data, label, selected) in enumerate(loader):
             for i, j in enumerate(label):
                 if torch.is_tensor(j):
                     label[i] = j.to(self.dev)
@@ -132,14 +134,17 @@ class Optimizer:
             bag_prediction = 1.0 * torch.softmax(bag_prediction, dim=1) + \
                        0.0 * torch.softmax(bag_pred_byMax.unsqueeze(0), dim=1)
             # instance_attn_score = torch.softmax(instance_attn_score, dim=1)
-
+            
             patch_label_pred.append(instance_attn_score[:, 1].detach().squeeze(0))
             patch_label_gt.append(label[0].squeeze(0))
             bag_label_pred.append(bag_prediction.detach()[0, 1])
             bag_label_gt.append(label[1])
             if niter % self.log_period == 0:
+                teacher_loss_record.append(loss_teacher.item())
                 self.writer.add_scalar('train_loss_Teacher', loss_teacher.item(), niter)
-
+        print('Epoch:{0:d}, train_loss_Teacher: {1:f}'.format(epoch,sum(teacher_loss_record)/len(teacher_loss_record)))
+        print('teacher model saved')
+        torch.save(self.model_teacherHead.state_dict(), 'saved_model/teacher.pt')
         patch_label_pred = torch.cat(patch_label_pred)
         patch_label_gt = torch.cat(patch_label_gt)
         bag_label_pred = torch.tensor(bag_label_pred)
@@ -148,12 +153,24 @@ class Optimizer:
         self.estimated_AttnScore_norm_para_min = patch_label_pred.min()
         self.estimated_AttnScore_norm_para_max = patch_label_pred.max()
         patch_label_pred_normed = self.norm_AttnScore2Prob(patch_label_pred)
-        instance_auc_ByTeacher = utliz.cal_auc(patch_label_gt.reshape(-1), patch_label_pred_normed.reshape(-1))
+        
+        print('Teacher_patch_label_gt:', patch_label_gt)
+        print('Teacher_patch_label_pred_normed:', patch_label_pred_normed)
 
+        instance_auc_ByTeacher = utliz.cal_auc(patch_label_gt.reshape(-1), patch_label_pred_normed.reshape(-1))
         bag_auc_ByTeacher = utliz.cal_auc(bag_label_gt.reshape(-1), bag_label_pred.reshape(-1))
+        Accuracy, Precision, Recall, Sensitivity, Specificity, F1_score = utliz.cal_metrics(bag_label_gt.reshape(-1), bag_label_pred.reshape(-1))
+        
         self.writer.add_scalar('train_instance_AUC_byTeacher', instance_auc_ByTeacher, epoch)
         self.writer.add_scalar('train_bag_AUC_byTeacher', bag_auc_ByTeacher, epoch)
-        # print("Epoch:{} train_bag_AUC_byTeacher:{}".format(epoch, bag_auc_ByTeacher))
+        self.writer.add_scalar('train_bag_Accuracy_byTeacher', Accuracy, epoch)
+        self.writer.add_scalar('train_bag_Precision_byTeacher', Precision, epoch)
+        self.writer.add_scalar('train_bag_Recall_byTeacher', Recall, epoch)
+        self.writer.add_scalar('train_bag_Sensitivity_byTeacher', Sensitivity, epoch)
+        self.writer.add_scalar('train_bag_Specificity_byTeacher', Specificity, epoch)
+        self.writer.add_scalar('train_bag_F1_score_byTeacher', F1_score, epoch)
+        print("Epoch:{} train_bag_AUC_byTeacher:{}".format(epoch, bag_auc_ByTeacher))
+        
         return 0
 
     def norm_AttnScore2Prob(self, attn_score):
@@ -238,7 +255,8 @@ class Optimizer:
         patch_label_pred = torch.zeros([loader.dataset.__len__(), 1]).float().to(self.dev)
         bag_label_gt = torch.zeros([loader.dataset.__len__(), 1]).long().to(self.dev)
         patch_corresponding_slide_idx = torch.zeros([loader.dataset.__len__(), 1]).long().to(self.dev)
-        for iter, (data, label, selected) in enumerate(tqdm(loader, desc='Student training')):
+        student_loss_record = []
+        for iter, (data, label, selected) in enumerate(loader):
             for i, j in enumerate(label):
                 if torch.is_tensor(j):
                     label[i] = j.to(self.dev)
@@ -268,17 +286,32 @@ class Optimizer:
             loss_student.backward()
             self.optimizer_encoder.step()
             self.optimizer_studentHead.step()
-
+            
             patch_corresponding_slide_idx[selected, 0] = label[2]
             patch_label_pred[selected, 0] = patch_prediction.detach()[:, 1]
             patch_label_gt[selected, 0] = label[0]
             bag_label_gt[selected, 0] = label[1]
             if niter % self.log_period == 0:
+                student_loss_record.append(loss_student.item())
                 self.writer.add_scalar('train_loss_Student', loss_student.item(), niter)
+        print('Epoch:{0:d}, train_loss_Student: {1:f}'.format(epoch,sum(student_loss_record)/len(student_loss_record)))
 
+
+        print('student model saved')
+        torch.save(self.model_studentHead.state_dict(), 'saved_model/student.pt')
         instance_auc_ByStudent = utliz.cal_auc(patch_label_gt.reshape(-1), patch_label_pred.reshape(-1))
+        print('Student_patch_label_gt:', patch_label_gt)
+        print('Student_patch_label_pred:', patch_label_pred)
+        # Log metrics
+        Accuracy, Precision, Recall, Sensitivity, Specificity, F1_score = utliz.cal_metrics(patch_label_gt.reshape(-1), patch_label_pred.reshape(-1))
         self.writer.add_scalar('train_instance_AUC_byStudent', instance_auc_ByStudent, epoch)
-        # print("Epoch:{} train_instance_AUC_byStudent:{}".format(epoch, instance_auc_ByStudent))
+        self.writer.add_scalar('train_instance_Accuracy_byStudent', Accuracy, epoch)
+        self.writer.add_scalar('train_instance_Precision_byStudent', Precision, epoch)
+        self.writer.add_scalar('train_instance_Recall_byStudent', Recall, epoch)
+        self.writer.add_scalar('train_instance_Sensitivity_byStudent', Sensitivity, epoch)
+        self.writer.add_scalar('train_instance_Specificity_byStudent', Specificity, epoch)
+        self.writer.add_scalar('train_instance_F1_score_byStudent', F1_score, epoch)
+        print("Epoch:{} train_instance_AUC_byStudent:{}".format(epoch, instance_auc_ByStudent))
 
         # cal bag-level auc
         bag_label_gt_coarse = []
@@ -474,10 +507,10 @@ def str2bool(v):
 def get_parser():
     parser = argparse.ArgumentParser(description='PyTorch Implementation of Self-Label')
     # optimizer
-    parser.add_argument('--epochs', default=1500, type=int, help='number of epochs')
-    parser.add_argument('--batch_size', default=512, type=int, help='batch size (default: 256)')
+    parser.add_argument('--epochs', default=750, type=int, help='number of epochs')
+    parser.add_argument('--batch_size', default=128, type=int, help='batch size (default: 256)')
     parser.add_argument('--lr', default=0.001, type=float, help='initial learning rate (default: 0.05)')
-    parser.add_argument('--lrdrop', default=1500, type=int, help='multiply LR by 0.5 every (default: 150 epochs)')
+    parser.add_argument('--lrdrop', default=50, type=int, help='multiply LR by 0.5 every (default: 150 epochs)')
     parser.add_argument('--wd', default=-5, type=float, help='weight decay pow (default: (-5)')
     parser.add_argument('--dtype', default='f64', choices=['f64', 'f32'], type=str, help='SK-algo dtype (default: f64)')
 
@@ -531,10 +564,12 @@ if __name__ == "__main__":
 
     print(name, flush=True)
 
-    writer = SummaryWriter('./runs_TCGA/%s'%name)
+    writer = SummaryWriter('./log/%s'%name)
     writer.add_text('args', " \n".join(['%s %s' % (arg, getattr(args, arg)) for arg in vars(args)]))
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
     # Setup model
+    print("Setting models and data-loaders")
     model_encoder = camelyon_feat_projecter(input_dim=512, output_dim=512).to(dev)
     model_teacherHead = teacher_DSMIL_head(input_feat_dim=512).to(dev)
     model_studentHead = student_head(input_feat_dim=512).to(dev)
@@ -566,7 +601,7 @@ if __name__ == "__main__":
         else:
             model_encoder = nn.DataParallel(model_encoder, device_ids=list(range(len(args.modeldevice))))
             model_teacherHead = nn.DataParallel(model_teacherHead, device_ids=list(range(len(args.modeldevice))))
-
+    print("Start Training")
     # Setup optimizer
     o = Optimizer(model_encoder=model_encoder, model_teacherHead=model_teacherHead, model_studentHead=model_studentHead,
                   optimizer_encoder=optimizer_encoder, optimizer_teacherHead=optimizer_teacherHead, optimizer_studentHead=optimizer_studentHead,
